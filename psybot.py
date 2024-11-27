@@ -1,80 +1,141 @@
 import telebot
 from telebot import types
-
-bot = telebot.TeleBot('7425361233:AAHLhNWDrND8gfwXzS6IFrIhWvmMfFna0aY');
-
-ame = '';
-surname = '';
-age = 0;
+import re
+import sqlite3
 
 
-@bot.message_handler(content_types=['text', 'document', 'audio'])
-def get_text_messages(message):
-    if message.text == "Привет":
-        bot.send_message(message.from_user.id, "Привет, чем я могу тебе помочь?")
-    elif message.text == "/help":
-        bot.send_message(message.from_user.id, "Напиши привет")
-    else:
-        bot.send_message(message.from_user.id, "Я тебя не понимаю. Напиши /help.")
+def create_db():
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
 
 
-def start(message):
-    if message.text == '/reg':
-        bot.send_message(message.from_user.id, "Как тебя зовут?");
-        bot.register_next_step_handler(message, get_name);  # следующий шаг – функция get_name
-    else:
-        bot.send_message(message.from_user.id, 'Напиши /reg');
+    cursor.execute('''CREATE TABLE IF NOT EXISTS users
+                      (name TEXT, surname TEXT, age INTEGER, phone TEXT, email TEXT)''')
 
 
-def get_name(message):  # получаем фамилию
-    global name;
-    name = message.text;
-    bot.send_message(message.from_user.id, 'Какая у тебя фамилия?');
-    bot.register_next_step_handler(message, get_surnme);
+    cursor.execute('''CREATE TABLE IF NOT EXISTS faq
+                      (question TEXT, answer TEXT)''')
+
+
+    cursor.execute("INSERT OR REPLACE INTO faq (question, answer) VALUES (?, ?)",
+                   ("привет", "Привет! Чем могу помочь?"))
+    cursor.execute("INSERT OR REPLACE INTO faq (question, answer) VALUES (?, ?)",
+                   ("что ты можешь", "Я могу помочь тебе зарегистрироваться, а также ответить на вопросы."))
+    cursor.execute("INSERT OR REPLACE INTO faq (question, answer) VALUES (?, ?)",
+                   ("кто ты", "Я бот, помогающий регистрировать пользователей и отвечать на вопросы."))
+    cursor.execute("INSERT OR REPLACE INTO faq (question, answer) VALUES (?, ?)",
+                   ("пока", "До свидания! Если понадоблюсь — я всегда здесь."))
+
+    conn.commit()
+    conn.close()
+
+
+
+create_db()
+
+bot = telebot.TeleBot('токен сюда')
+
+name = ''
+surname = ''
+age = 0
+phone = ''
+email = ''
+
+
+@bot.message_handler(commands=['reg'])
+def start_registration(message):
+    bot.send_message(message.chat.id, "Как тебя зовут?")
+    bot.register_next_step_handler(message, get_name)
+
+
+def get_name(message):
+    global name
+    name = message.text
+    bot.send_message(message.chat.id, "Какая у тебя фамилия?")
+    bot.register_next_step_handler(message, get_surname)
 
 
 def get_surname(message):
-    global surname;
-    surname = message.text;
-    bot.send_message('Сколько тебе лет?');
-    bot.register_next_step_handler(message, get_age);
+    global surname
+    surname = message.text
+    bot.send_message(message.chat.id, "Сколько тебе лет?")
+    bot.register_next_step_handler(message, get_age)
 
 
 def get_age(message):
-    global age;
-    while age == 0:  # проверяем что возраст изменился
-        try:
-            age = int(message.text)  # проверяем, что возраст введен корректно
-        except Exception:
-            bot.send_message(message.from_user.id, 'Цифрами, пожалуйста');
-    bot.send_message(message.from_user.id, 'Тебе ' + str(age) + ' лет, тебя зовут ' + name + ' ' + surname + '?')
+    global age
+    try:
+        age = int(message.text)
+        bot.send_message(message.chat.id, "Теперь, пожалуйста, укажи свой номер телефона в формате +7xxxxxxxxxx.")
+        bot.register_next_step_handler(message, get_phone)
+    except ValueError:
+        bot.send_message(message.chat.id, "Цифрами, пожалуйста. Сколько тебе лет?")
+        bot.register_next_step_handler(message, get_age)
 
 
-def get_age(message):
-    global age;
-    while age == 0:  # проверяем что возраст изменился
-        try:
-            age = int(message.text)  # проверяем, что возраст введен корректно
-        except Exception:
-            bot.send_message(message.from_user.id, 'Цифрами, пожалуйста');
-    keyboard = types.InlineKeyboardMarkup();  # наша клавиатура
-    key_yes = types.InlineKeyboardButton(text='Да', callback_data='yes');  # кнопка «Да»
-    keyboard.add(key_yes);  # добавляем кнопку в клавиатуру
-    key_no = types.InlineKeyboardButton(text='Нет', callback_data='no');
-    keyboard.add(key_no);
-    question = 'Тебе ' + str(age) + ' лет, тебя зовут ' + name + ' ' + surname + '?';
-    bot.send_message(message.from_user.id, text=question, reply_markup=keyboard)
+def get_phone(message):
+    global phone
+    phone = message.text
+    if not re.match(r"^\+7\d{10}$", phone):
+        bot.send_message(message.chat.id, "Номер телефона должен быть в формате +7xxxxxxxxxx. Попробуй еще раз.")
+        bot.register_next_step_handler(message, get_phone)
+    else:
+        bot.send_message(message.chat.id, "Теперь, пожалуйста, укажи свою электронную почту.")
+        bot.register_next_step_handler(message, get_email)
+
+
+def get_email(message):
+    global email
+    email = message.text
+    if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+        bot.send_message(message.chat.id, "Некорректный email. Попробуй еще раз.")
+        bot.register_next_step_handler(message, get_email)
+    else:
+
+        confirmation_message = (
+            f"Тебе {age} лет,\n"
+            f"Тебя зовут {name} {surname},\n"
+            f"Твой №телефона: {phone},\n"
+            f"Твой email: {email}\n"
+            f"Всё верно?"
+        )
+        keyboard = types.InlineKeyboardMarkup()
+        key_yes = types.InlineKeyboardButton(text="Да", callback_data="yes")
+        key_no = types.InlineKeyboardButton(text="Нет", callback_data="no")
+        keyboard.add(key_yes, key_no)
+        bot.send_message(message.chat.id, confirmation_message, reply_markup=keyboard)
 
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_worker(call):
-    if call.data == "yes":  # call.data это callback_data, которую мы указали при объявлении кнопки
-        # код сохранения данных, или их обработки
-        bot.send_message(call.message.chat.id, 'Запомню : )');
+    if call.data == "yes":
+        # Сохранение данных в базу данных
+        conn = sqlite3.connect('users.db')
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO users (name, surname, age, phone, email) VALUES (?, ?, ?, ?, ?)",
+                       (name, surname, age, phone, email))
+        conn.commit()
+        conn.close()
+        bot.send_message(call.message.chat.id, 'Спасибо за регистрацию! Все данные сохранены.')
     elif call.data == "no":
-        # переспрашиваем
-        bot.send_message(call.message.chat.id, 'Давайте попробуем еще раз')
-        start(call.message)
+        bot.send_message(call.message.chat.id, 'Давайте попробуем еще раз.')
+        start_registration(call.message)
+
+    @bot.message_handler(func=lambda message: True)
+    def respond_to_general_questions(message):
+        text = message.text.lower()
+
+        conn = sqlite3.connect('users.db')
+        cursor = conn.cursor()
+        cursor.execute("SELECT answer FROM faq WHERE question=?", (text,))
+        result = cursor.fetchone()
+        conn.close()
+
+        if result:
+            bot.send_message(message.chat.id, result[0])
+        else:
+            bot.send_message(message.chat.id,
+                             "Я не совсем понимаю твой вопрос. Попробуй задать что-то другое или напиши /help.")
 
 
 bot.polling(none_stop=True, interval=0)
