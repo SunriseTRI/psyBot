@@ -1,7 +1,15 @@
+import sqlite3
 import telebot
-from db_helper import DBHelper
-from transformers_helper import get_answer_from_model
+import re
+import random
+import string
+from transformers import DistilBertTokenizer, DistilBertForQuestionAnswering
+import torch
+import os
 
+
+# Отключение oneDNN
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 # Инициализация бота
 API_TOKEN = '7425361233:AAHLhNWDrND8gfwXzS6IFrIhWvmMfFna0aY'
 bot = telebot.TeleBot(API_TOKEN)
