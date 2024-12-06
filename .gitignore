@@ -3,8 +3,11 @@
 *.pyo
 __pycache__/
 temp.py
-# PyCharm
+oldpsybot1.py
 .idea/
-
-# Virtual environment
+logs/
 venv/
+.venv/
+oldFiles/
+results/
+*.db
