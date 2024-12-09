@@ -66,7 +66,7 @@ def insert_unanswered_question(question, added_by):
     conn.close()
 
 
-
+"""создание стартовой БД"""
 def populate_standard_faq():
     conn, cursor = connect_db()
     standard_questions = [
