@@ -9,8 +9,8 @@ import pandas as pd
 logging.basicConfig(level=logging.INFO)
 
 
-tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
-model = DistilBertForQuestionAnswering.from_pretrained('distilbert-base-uncased')
+tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-multilingual-cased')
+model = DistilBertForQuestionAnswering.from_pretrained('distilbert-base-multilingual-cased')
 
 
 def save_faq_to_csv(faq_rows, filename='faq_data.csv'):
